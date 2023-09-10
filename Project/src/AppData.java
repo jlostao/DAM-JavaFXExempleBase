@@ -1,10 +1,14 @@
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
+import java.util.function.Consumer;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+
+import javafx.application.Platform;
 
 public class AppData {
 
@@ -19,32 +23,36 @@ public class AppData {
         return instance;
     }
 
-    public String loadData(String dataFile) {
-        try {
-            // Espera un segon
-            Thread.sleep(1000);
+    public void loadData(String dataFile, Consumer<String> callBack) {
 
-            // Llegir l'arxiu que està dins del .jar
-            try (InputStream is = getClass().getResourceAsStream(dataFile);
-                Reader reader = new InputStreamReader(is, StandardCharsets.UTF_8)) {
-
+        // Use a thread to avoid blocking the UI
+        new Thread(() -> {
+            try {
+                // Wait a second to simulate a long loading time
+                Thread.sleep(1000);  
+    
+                // Load the data from the assets file
+                InputStream is = getClass().getResourceAsStream(dataFile);
+                Reader reader = new InputStreamReader(is, StandardCharsets.UTF_8);
                 StringBuilder content = new StringBuilder();
                 char[] buffer = new char[1024];
                 int bytesRead;
-
                 while ((bytesRead = reader.read(buffer)) != -1) {
                     content.append(buffer, 0, bytesRead);
                 }
 
-                return content.toString();
+                // Call the callback function on the UI thread (Only works on JavaFX)
+                Platform.runLater(()->{
+                    callBack.accept(content.toString());
+                });
 
-            } catch (Exception e) {
+            } catch (InterruptedException e) {
+                callBack.accept(null);
                 e.printStackTrace();
-                throw new Exception("Error al llegir l'arxiu: " + dataFile);
+            } catch (IOException e) {
+                callBack.accept(null);
+                e.printStackTrace();
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException("Error al carregar les dades.");
-        }
+        }).start();
     }
 }
